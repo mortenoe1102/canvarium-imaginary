@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from aurora_cull.cli import main
 
 
