@@ -211,6 +211,8 @@ ENTER_KEYS = {10, 13}
 QUIT_KEYS = {27}
 HELP_KEYS = {16777264, 65470}
 CTRL_MODIFIER_MASK = 0x04000000
+COMMAND_MODIFIER_MASK = 0x10000000
+MODIFIER_MASKS = CTRL_MODIFIER_MASK | COMMAND_MODIFIER_MASK
 PARAMETER_SELECT_KEYS = {
     ord("e"): "exposure",
     ord("E"): "exposure",
@@ -450,9 +452,9 @@ def _is_ctrl_modified_key(key: int, base_keys: set[int]) -> bool:
         return False
     if key in base_keys and _ctrl_pressed():
         return True
-    if not key & CTRL_MODIFIER_MASK:
+    if not (key & MODIFIER_MASKS):
         return False
-    stripped = key & ~CTRL_MODIFIER_MASK
+    stripped = key & ~MODIFIER_MASKS
     return stripped in base_keys or (stripped & 0xFFFFFF) in base_keys
 
 

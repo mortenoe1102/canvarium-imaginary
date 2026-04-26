@@ -664,6 +664,11 @@ class AuroraGradeCliTests(unittest.TestCase):
         self.assertTrue(preview_module._is_ctrl_modified_key(0x04000000 | 2621440, {2621440}))
         self.assertFalse(preview_module._is_ctrl_modified_key(2490368, {2490368}))
 
+    def test_command_modified_keys_are_detected(self) -> None:
+        self.assertTrue(preview_module._is_ctrl_modified_key(0x10000000 | 2490368, {2490368}))
+        self.assertTrue(preview_module._is_ctrl_modified_key(0x10000000 | 2621440, {2621440}))
+        self.assertFalse(preview_module._is_ctrl_modified_key(2490368, {2490368}))
+
     def test_preview_step_sizes_are_uniform(self) -> None:
         self.assertTrue(all(step == 0.01 for step in preview_module.ADJUSTMENT_STEPS.values()))
         self.assertEqual(preview_module.TRANSFORM_STEPS["zoom"], 0.01)
