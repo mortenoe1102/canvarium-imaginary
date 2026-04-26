@@ -5,17 +5,27 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+_SHA256_CACHE: dict[tuple[str, int, int], str] = {}
+
 
 def now_iso() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def sha256_file(path: Path) -> str:
+    """Return a SHA-256 digest for a file, caching repeated same-file reads during a run."""
+    stat = path.stat()
+    cache_key = (str(path.resolve()), stat.st_mtime_ns, stat.st_size)
+    if cache_key in _SHA256_CACHE:
+        return _SHA256_CACHE[cache_key]
+
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
-    return digest.hexdigest()
+    result = digest.hexdigest()
+    _SHA256_CACHE[cache_key] = result
+    return result
 
 
 def write_json(path: Path, payload: object) -> Path:

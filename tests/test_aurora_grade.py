@@ -12,6 +12,7 @@ from unittest import mock
 from PIL import Image
 
 from aurora_grade import cli
+from aurora_grade import manifest as manifest_module
 from aurora_grade.export import stage_export_variants as real_stage_export_variants
 from aurora_grade.grading_pipeline import apply_grading
 from aurora_grade.palette import build_palette_context
@@ -421,6 +422,19 @@ class AuroraGradeCliTests(unittest.TestCase):
             self.assertEqual(entries[0], staged_entries[first.name])
             self.assertTrue(entries[1]["rejected"])
             self.assertEqual(entries[1]["original_filename"], second.name)
+
+    def test_sha256_file_caches_repeated_reads(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            source = root / "cache-test.jpg"
+            source.write_bytes(b"cache-data")
+
+            with mock.patch("io.open", wraps=io.open) as open_patch:
+                first_digest = manifest_module.sha256_file(source)
+                second_digest = manifest_module.sha256_file(source)
+
+            self.assertEqual(first_digest, second_digest)
+            self.assertEqual(open_patch.call_count, 1)
 
     def test_per_image_override_is_written_and_applied(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

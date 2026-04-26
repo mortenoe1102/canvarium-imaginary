@@ -114,6 +114,10 @@ Processing order:
 20. final clamp and uint8 conversion
 21. write file
 
+## Performance
+
+Aurora Grade caches repeated per-run checksum calculations and preview rendering state where practical. This reduces repeated disk reads during a single run, especially when the same image is revisited in preview mode or when export planning reuses the same inputs.
+
 ## Preview Controls
 
 Navigation:
