@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-
-from aurora_cull.cli import main
+from aurora_grade.cli import main
 
 
 if __name__ == "__main__":
