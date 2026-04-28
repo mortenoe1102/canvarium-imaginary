@@ -124,8 +124,11 @@ def _ensure_qt_platform_backend() -> None:
         os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 
+_X11_SHIFT_KEYCODES: set[int] = set()
+
+
 def _init_x11_ctrl_probe() -> None:
-    global _X11_LIB, _X11_DISPLAY, _X11_CTRL_KEYCODES
+    global _X11_LIB, _X11_DISPLAY, _X11_CTRL_KEYCODES, _X11_SHIFT_KEYCODES
     if sys.platform != "linux" or _X11_LIB is not None:
         return
     libname = ctypes.util.find_library("X11")
@@ -145,24 +148,44 @@ def _init_x11_ctrl_probe() -> None:
     if not display:
         return
     ctrl_keycodes = set()
+    shift_keycodes = set()
     for keysym in (0xFFE3, 0xFFE4):
         keycode = int(x11.XKeysymToKeycode(display, keysym))
         if keycode:
             ctrl_keycodes.add(keycode)
-    if not ctrl_keycodes:
+    for keysym in (0xFFE1, 0xFFE2):
+        keycode = int(x11.XKeysymToKeycode(display, keysym))
+        if keycode:
+            shift_keycodes.add(keycode)
+    if not ctrl_keycodes and not shift_keycodes:
         return
     _X11_LIB = x11
     _X11_DISPLAY = display
     _X11_CTRL_KEYCODES = ctrl_keycodes
+    _X11_SHIFT_KEYCODES = shift_keycodes
 
 
 def _ctrl_pressed() -> bool:
-    if _X11_LIB is None or _X11_DISPLAY is None or not _X11_CTRL_KEYCODES:
+    if _X11_LIB is None or _X11_DISPLAY is None:
         return False
     keymap = (ctypes.c_ubyte * 32)()
     if _X11_LIB.XQueryKeymap(_X11_DISPLAY, keymap) != 1:
         return False
     for keycode in _X11_CTRL_KEYCODES:
+        index = keycode // 8
+        mask = 1 << (keycode % 8)
+        if keymap[index] & mask:
+            return True
+    return False
+
+
+def _shift_pressed() -> bool:
+    if _X11_LIB is None or _X11_DISPLAY is None:
+        return False
+    keymap = (ctypes.c_ubyte * 32)()
+    if _X11_LIB.XQueryKeymap(_X11_DISPLAY, keymap) != 1:
+        return False
+    for keycode in _X11_SHIFT_KEYCODES:
         index = keycode // 8
         mask = 1 << (keycode % 8)
         if keymap[index] & mask:
@@ -211,8 +234,9 @@ ENTER_KEYS = {10, 13}
 QUIT_KEYS = {27}
 HELP_KEYS = {16777264, 65470}
 CTRL_MODIFIER_MASK = 0x04000000
+SHIFT_MODIFIER_MASK = 0x08000000
 COMMAND_MODIFIER_MASK = 0x10000000
-MODIFIER_MASKS = CTRL_MODIFIER_MASK | COMMAND_MODIFIER_MASK
+MODIFIER_MASKS = CTRL_MODIFIER_MASK | SHIFT_MODIFIER_MASK | COMMAND_MODIFIER_MASK
 PARAMETER_SELECT_KEYS = {
     ord("e"): "exposure",
     ord("E"): "exposure",
@@ -450,7 +474,7 @@ def _grid_level_from_index(index: int) -> int:
 def _is_ctrl_modified_key(key: int, base_keys: set[int]) -> bool:
     if key <= 0:
         return False
-    if key in base_keys and _ctrl_pressed():
+    if key in base_keys and (_ctrl_pressed() or _shift_pressed()):
         return True
     if not (key & MODIFIER_MASKS):
         return False
@@ -866,7 +890,7 @@ def run_preview(
                     "palette_context": palette_context,
                     "per_image_overrides": per_image_overrides,
                 }
-            if _is_quit_key(key):
+            if key in QUIT_KEYS or _is_ctrl_modified_key(key, {ord("q"), ord("Q")}):
                 return {
                     "saved": False,
                     "preset": normalize_preset(working_preset),
